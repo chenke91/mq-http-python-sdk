@@ -5,12 +5,12 @@ import time
 import hashlib
 import hmac
 import platform
-import pkg_info
-from mq_xml_handler import *
-from mq_tool import *
-from mq_http import *
-from mq_consumer import MQConsumer
-from mq_producer import MQProducer
+from .pkg_info import version
+from .mq_xml_handler import *
+from .mq_tool import *
+from .mq_http import *
+from .mq_consumer import MQConsumer
+from .mq_producer import MQProducer
 
 URI_SEC_MESSAGE = "messages"
 URI_SEC_TOPIC = "topics"
@@ -193,7 +193,7 @@ class MQClient:
         req_inter.header["host"] = self.host
         req_inter.header["date"] = time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime())
         req_inter.header["user-agent"] = "mq-python-sdk/%s(%s/%s;%s)" % \
-                                         (pkg_info.version, platform.system(), platform.release(),
+                                         (version, platform.system(), platform.release(),
                                           platform.python_version())
         req_inter.header["Authorization"] = self.get_signature(req_inter.method, req_inter.header, req_inter.uri)
         if self.security_token != "":
@@ -207,16 +207,15 @@ class MQClient:
         canonicalized_mq_headers = ""
         if len(headers) > 0:
             x_header_list = headers.keys()
-            x_header_list.sort()
-            for k in x_header_list:
+            for k in sorted(x_header_list):
                 if k.startswith('x-mq-'):
                     canonicalized_mq_headers += k + ":" + headers[k] + "\n"
         string_to_sign = "%s\n%s\n%s\n%s\n%s%s" % (
             method, content_md5, content_type, date, canonicalized_mq_headers, canonicalized_resource)
         # hmac only support str in python2.7
-        tmp_key = self.access_key.encode('utf-8') if isinstance(self.access_key, unicode) else self.access_key
-        h = hmac.new(tmp_key, string_to_sign, hashlib.sha1)
-        signature = base64.b64encode(h.digest())
+        tmp_key = self.access_key.encode('utf-8') if isinstance(self.access_key, str) else self.access_key
+        h = hmac.new(tmp_key, string_to_sign.encode('utf-8'), hashlib.sha1)
+        signature = base64.b64encode(h.digest()).decode()
         signature = "MQ " + self.access_id + ":" + signature
         return signature
 
